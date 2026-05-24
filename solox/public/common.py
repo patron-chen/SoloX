@@ -303,7 +303,9 @@ class File:
                                            cpu_app=summary['cpu_app'],cpu_sys=summary['cpu_sys'],
                                            mem_total=summary['mem_total'],mem_swap=summary['mem_swap'],
                                            fps=summary['fps'],jank=summary['jank'],level=summary['level'],
-                                           tem=summary['tem'],net_send=summary['net_send'],
+                                           tem=summary['tem'],current=summary['current'],
+                                           voltage=summary['voltage'],power=summary['power'],
+                                           net_send=summary['net_send'],
                                            net_recv=summary['net_recv'],cpu_charts=summary['cpu_charts'],
                                            mem_charts=summary['mem_charts'],net_charts=summary['net_charts'],
                                            battery_charts=summary['battery_charts'],fps_charts=summary['fps_charts'],
@@ -516,9 +518,15 @@ class File:
         if platform == Platform.Android:
             targetDic['batteryLevel'] = self.readLog(scene=scene, filename='battery_level.log')[0]
             targetDic['batteryTem'] = self.readLog(scene=scene, filename='battery_tem.log')[0]
+            targetDic['batteryCurrent'] = self.readLog(scene=scene, filename='battery_current.log')[0]
+            targetDic['batteryVoltage'] = self.readLog(scene=scene, filename='battery_voltage.log')[0]
+            targetDic['batteryPower'] = self.readLog(scene=scene, filename='battery_power.log')[0]
             result = {'status': 1, 
                       'batteryLevel': targetDic['batteryLevel'], 
-                      'batteryTem': targetDic['batteryTem']}
+                      'batteryTem': targetDic['batteryTem'],
+                      'batteryCurrent': targetDic['batteryCurrent'],
+                      'batteryVoltage': targetDic['batteryVoltage'],
+                      'batteryPower': targetDic['batteryPower']}
         else:
             targetDic['batteryTem'] = self.readLog(scene=scene, filename='battery_tem.log')[0]
             targetDic['batteryCurrent'] = self.readLog(scene=scene, filename='battery_current.log')[0]
@@ -684,11 +692,20 @@ class File:
 
         batteryLevelData = self.readLog(scene=scene, filename=f'battery_level.log')[1]
         batteryTemlData = self.readLog(scene=scene, filename=f'battery_tem.log')[1]
+        batteryCurrentData = self.readLog(scene=scene, filename='battery_current.log')[1]
+        batteryVoltageData = self.readLog(scene=scene, filename='battery_voltage.log')[1]
+        batteryPowerData = self.readLog(scene=scene, filename='battery_power.log')[1]
         if batteryLevelData.__len__() > 0 and batteryTemlData.__len__() > 0:
             batteryLevel = f'{batteryLevelData[-1]}%'
             batteryTeml = f'{batteryTemlData[-1]}°C'
         else:
             batteryLevel, batteryTeml = 0, 0   
+        if batteryCurrentData.__len__() > 0 and batteryVoltageData.__len__() > 0 and batteryPowerData.__len__() > 0:
+            batteryCurrent = int(sum(batteryCurrentData) / len(batteryCurrentData))
+            batteryVoltage = int(sum(batteryVoltageData) / len(batteryVoltageData))
+            batteryPower = int(sum(batteryPowerData) / len(batteryPowerData))
+        else:
+            batteryCurrent, batteryVoltage, batteryPower = 0, 0, 0
     
 
         totalPassData = self.readLog(scene=scene, filename=f'mem_total.log')[1]
@@ -745,6 +762,9 @@ class File:
         apm_dict['flow_recv'] = flowRecv
         apm_dict['batteryLevel'] = batteryLevel
         apm_dict['batteryTeml'] = batteryTeml
+        apm_dict['batteryCurrent'] = batteryCurrent
+        apm_dict['batteryVoltage'] = batteryVoltage
+        apm_dict['batteryPower'] = batteryPower
         apm_dict['mem_detail_flag'] = mem_detail_flag
         apm_dict['disk_flag'] = disk_flag
         apm_dict['gpu'] = gpu

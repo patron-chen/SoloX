@@ -366,8 +366,8 @@ class Battery(object):
 
     def getBattery(self, noLog=False):
         if self.platform == Platform.Android:
-            level, temperature = self.getAndroidBattery(noLog)
-            return level, temperature
+            level, temperature, current, voltage, power = self.getAndroidBattery(noLog)
+            return level, temperature, current, voltage, power
         else:
             temperature, current, voltage, power = self.getiOSBattery(noLog)
             return temperature, current, voltage, power
@@ -381,15 +381,94 @@ class Battery(object):
         # Get phone battery info
         cmd = "dumpsys battery"
         output = adb.shell(cmd=cmd, deviceId=self.deviceId)
-        level = int(re.findall("level:\s?(\d+)", output)[0])
-        temperature = int(re.findall("temperature:\s?(\d+)", output)[0]) / 10
+        level = int(re.findall(r"level:\s?(\d+)", output)[0])
+        temperature = int(re.findall(r"temperature:\s?(\d+)", output)[0]) / 10
+        current, voltage = self.getAndroidBatteryPowerInfo(output)
+        power = round(current * voltage / 1000, 2) if current and voltage else 0
         if noLog is False:
             apm_time = datetime.datetime.now().strftime("%H:%M:%S.%f")
             f.add_log(os.path.join(f.report_dir, "battery_level.log"), apm_time, level)
             f.add_log(
                 os.path.join(f.report_dir, "battery_tem.log"), apm_time, temperature
             )
-        return level, temperature
+            f.add_log(
+                os.path.join(f.report_dir, "battery_current.log"), apm_time, current
+            )
+            f.add_log(
+                os.path.join(f.report_dir, "battery_voltage.log"), apm_time, voltage
+            )
+            f.add_log(os.path.join(f.report_dir, "battery_power.log"), apm_time, power)
+        return level, temperature, current, voltage, power
+
+    def getAndroidBatteryPowerInfo(self, dumpsys_output=""):
+        current = self.getAndroidBatteryCurrent()
+        voltage = self.getAndroidBatteryVoltage()
+        if current == 0:
+            current = self.getAndroidDumpsysCurrent(dumpsys_output)
+        if voltage == 0:
+            voltage = self.getAndroidDumpsysVoltage(dumpsys_output)
+        return current, voltage
+
+    def getAndroidBatteryCurrent(self):
+        for filename in ["current_now", "current_avg", "batt_current_now"]:
+            value = self.getAndroidBatteryNode(filename)
+            if value is not None:
+                return self.normalizeAndroidCurrent(value)
+        return 0
+
+    def getAndroidBatteryVoltage(self):
+        for filename in ["voltage_now", "voltage_avg", "batt_volt"]:
+            value = self.getAndroidBatteryNode(filename)
+            if value is not None:
+                return self.normalizeAndroidVoltage(value)
+        return 0
+
+    def getAndroidBatteryNode(self, filename):
+        cmd = "cat /sys/class/power_supply/battery/{}".format(filename)
+        output = adb.shell(cmd=cmd, deviceId=self.deviceId)
+        match = re.search(r"-?\d+", output)
+        if not match:
+            return None
+        return int(match.group(0))
+
+    def getAndroidDumpsysCurrent(self, output):
+        value = self.getAndroidDumpsysValue(
+            output,
+            [
+                "current now",
+                "current_now",
+                "current",
+                "BatteryCurrent",
+            ],
+        )
+        return self.normalizeAndroidCurrent(value) if value is not None else 0
+
+    def getAndroidDumpsysVoltage(self, output):
+        value = self.getAndroidDumpsysValue(
+            output,
+            ["voltage", "voltage now", "voltage_now", "BatteryVoltage"],
+        )
+        return self.normalizeAndroidVoltage(value) if value is not None else 0
+
+    def getAndroidDumpsysValue(self, output, keys):
+        for key in keys:
+            pattern = r"(?:^|\n)\s*{}:\s*(-?\d+)".format(re.escape(key))
+            match = re.search(pattern, output, re.I)
+            if match:
+                return int(match.group(1))
+        return None
+
+    def normalizeAndroidCurrent(self, value):
+        value = abs(value)
+        if value >= 10000:
+            value = value / 1000
+        return round(value, 2)
+
+    def normalizeAndroidVoltage(self, value):
+        value = abs(value)
+        if value >= 100000:
+            value = value / 1000
+        return round(value, 2)
 
     def getiOSBattery(self, noLog=False):
         """Get ios battery info, unit:%"""
@@ -615,10 +694,13 @@ class GPU(object):
     def getAndroidGpuRate(self):
         cmd = "cat /sys/class/kgsl/kgsl-3d0/gpubusy"
         result = adb.shell(cmd=cmd, deviceId=self.deviceId)
-        gpu = round(
-            float(int(result.split(" ")[0]) / int(result.split(" ")[1])) * 100, 2
-        )
-        return gpu
+        values = re.findall(r"\d+", result)
+        if len(values) < 2:
+            return 0
+        busy, total = int(values[0]), int(values[1])
+        if total == 0:
+            return 0
+        return round(float(busy / total) * 100, 2)
 
     def getiOSGpuRate(self):
         apm = iosPerformance(self.pkgName, self.deviceId)
@@ -936,7 +1018,13 @@ class AppPerformanceMonitor(initPerformanceService):
         while self.get_status() == "on":
             final = _battery.getBattery(noLog=self.noLog)
             if self.platform == Platform.Android:
-                result = {"level": final[0], "temperature": final[1]}
+                result = {
+                    "level": final[0],
+                    "temperature": final[1],
+                    "current": final[2],
+                    "voltage": final[3],
+                    "power": final[4],
+                }
             else:
                 result = {
                     "temperature": final[0],
@@ -1035,6 +1123,9 @@ class AppPerformanceMonitor(initPerformanceService):
                 summary_dict["jank"] = summary["jank"]
                 summary_dict["level"] = summary["batteryLevel"]
                 summary_dict["tem"] = summary["batteryTeml"]
+                summary_dict["current"] = summary["batteryCurrent"]
+                summary_dict["voltage"] = summary["batteryVoltage"]
+                summary_dict["power"] = summary["batteryPower"]
                 summary_dict["net_send"] = summary["flow_send"]
                 summary_dict["net_recv"] = summary["flow_recv"]
                 summary_dict["gpu"] = summary["gpu"]

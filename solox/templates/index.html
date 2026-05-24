@@ -170,9 +170,11 @@ SoloX - Application Performance Monitoring
                                 {% if lan == 'cn' %} <strong>流畅度</strong> {% else %} <strong>FPS</strong> {% endif %}
                                 {% if platform == 'Android' %}
                                 <span class="ms-auto">
-                                    <label class="form-check form-check-single form-switch">
-                                        <input id="fps-switch" class="form-check-input cursor-pointer" type="checkbox" checked name="fps-switch" style="margin-right: 5px"> SurfaceView
-                                    </label>
+                                    <select id="fps-mode" class="form-select form-select-sm cursor-pointer" name="fps-mode">
+                                        <option value="auto" selected>Auto</option>
+                                        <option value="true">SurfaceView</option>
+                                        <option value="false">Window/Gfxinfo</option>
+                                    </select>
                                 </span>
                                 {% endif %}
                             </label>
@@ -766,11 +768,20 @@ SoloX - Application Performance Monitoring
                             if(platform == 'Android'){
                                 var seriesLevel = battery_chart.series[0];
                                 var seriesTemperature = battery_chart.series[1];
+                                var seriesCurrent = battery_chart.series[2];
+                                var seriesVoltage = battery_chart.series[3];
+                                var seriesPower = battery_chart.series[4];
                                 var x = (new Date()).getTime(),
                                 y_level = data['level'],
-                                y_temperature = data['temperature'];
+                                y_temperature = data['temperature'],
+                                y_current = data['current'],
+                                y_voltage = data['voltage'],
+                                y_power = data['power'];
                                 seriesLevel.addPoint([x, y_level], true, true);
                                 seriesTemperature.addPoint([x, y_temperature], true, true);
+                                seriesCurrent.addPoint([x, y_current], true, true);
+                                seriesVoltage.addPoint([x, y_voltage], true, true);
+                                seriesPower.addPoint([x, y_power], true, true);
                                 
                             }else{
                                 var seriesTemperature = battery_chart.series[0];
@@ -778,9 +789,9 @@ SoloX - Application Performance Monitoring
                                 var seriesVoltage = battery_chart.series[2];
                                 var seriesPower = battery_chart.series[3];
                                 var x = (new Date()).getTime(),
-                                y_temperature = data['temperature'];
-                                y_current = data['current'];
-                                y_voltage = data['voltage'];
+                                y_temperature = data['temperature'],
+                                y_current = data['current'],
+                                y_voltage = data['voltage'],
                                 y_power = data['power'];
                                 seriesTemperature.addPoint([x, y_temperature], true, true);
                                 seriesCurrent.addPoint([x, y_current], true, true);
@@ -1494,6 +1505,45 @@ SoloX - Application Performance Monitoring
             }
             return data;
         }())
+    },{
+        name : 'current',
+        pointInterval: 120 * 1000,
+        data : (function () {
+            var data = [], time = (new Date()).getTime(), i;
+            for (i = -999; i <= 0; i += 1) {
+                data.push([
+                    time + i * 1000,
+                    Math.round(0)
+                ]);
+            }
+            return data;
+        }())
+    },{
+        name : 'voltage',
+        pointInterval: 120 * 1000,
+        data : (function () {
+            var data = [], time = (new Date()).getTime(), i;
+            for (i = -999; i <= 0; i += 1) {
+                data.push([
+                    time + i * 1000,
+                    Math.round(0)
+                ]);
+            }
+            return data;
+        }())
+    },{
+        name : 'power',
+        pointInterval: 120 * 1000,
+        data : (function () {
+            var data = [], time = (new Date()).getTime(), i;
+            for (i = -999; i <= 0; i += 1) {
+                data.push([
+                    time + i * 1000,
+                    Math.round(0)
+                ]);
+            }
+            return data;
+        }())
     }];
 
     var seriesiOSBettery = [{
@@ -2076,17 +2126,17 @@ SoloX - Application Performance Monitoring
 
     function collectFps(device,pkgname){
         var fps_checkbox = $('#fps_checkbox').is(':checked');
-        var fps_switch = $('#fps-switch').is(':checked');
-        console.log(fps_switch)
+        var fps_mode = platform == 'Android' ? $('#fps-mode').val() : 'auto';
+        console.log(fps_mode)
 
         if(fps_checkbox){
             fpsInitialize();
             if(platform == 'Android'){
                 let title = 'FPS(HZ) & Jank(Times)';
-                fps_chart = collectPers(device,pkgname,'fps',title,getFps(pkgname,device,fps_switch));
+                fps_chart = collectPers(device,pkgname,'fps',title,getFps(pkgname,device,fps_mode));
             }else{
                 let title = 'FPS（HZ）';
-                fps_chart = collectPers(device,pkgname,'fps_ios',title,getFps(pkgname,device,fps_switch));
+                fps_chart = collectPers(device,pkgname,'fps_ios',title,getFps(pkgname,device,fps_mode));
             }
         }
     }

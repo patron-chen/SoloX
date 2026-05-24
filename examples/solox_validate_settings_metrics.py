@@ -44,10 +44,6 @@ def swipe_for(seconds: float) -> threading.Thread:
 
 def main() -> int:
     devices = Devices()
-    adb.shell(
-        "monkey -p com.android.settings -c android.intent.category.LAUNCHER 1",
-        DEVICE_ID,
-    )
     pids = devices.getPid(DEVICE_ID, PACKAGE_NAME)
     main_pid = [item for item in pids if item.endswith(":" + PACKAGE_NAME)][0].split(
         ":", 1

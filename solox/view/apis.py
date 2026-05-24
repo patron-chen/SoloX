@@ -421,7 +421,13 @@ def getBattery():
         battery_monitor = Battery(deviceId=deviceId, platform=platform)
         final = battery_monitor.getBattery()
         if platform == Platform.Android:
-            result = {'status': 1, 'level': final[0], 'temperature': final[1]}
+            result = {
+                'status': 1,
+                'level': final[0],
+                'temperature': final[1],
+                'current': final[2],
+                'voltage': final[3],
+                'power': final[4]}
         else:
             result = {
                 'status': 1,
@@ -615,6 +621,9 @@ def exportAndroidHtml():
     jank = method._request(request, 'jank')
     level = method._request(request, 'level')
     temperature = method._request(request, 'temperature')
+    current = method._request(request, 'current')
+    voltage = method._request(request, 'voltage')
+    power = method._request(request, 'power')
     net_send = method._request(request, 'net_send')
     net_recv = method._request(request, 'net_recv')
     gpu = method._request(request, 'gpu')
@@ -632,6 +641,9 @@ def exportAndroidHtml():
         summary_dict['jank'] = jank
         summary_dict['level'] = level
         summary_dict['tem'] = temperature
+        summary_dict['current'] = current
+        summary_dict['voltage'] = voltage
+        summary_dict['power'] = power
         summary_dict['net_send'] = net_send
         summary_dict['net_recv'] = net_recv
         summary_dict['gpu'] = gpu
@@ -809,10 +821,16 @@ def apmCollect():
                 fps, jank = fps_monitor.getFPS(noLog=True)
                 result = {'status': 1, 'fps': fps, 'jank': jank}
             case Target.Battery:
-                battery_monitor = Battery(deviceId=deviceid)
+                battery_monitor = Battery(deviceId=deviceid, platform=platform)
                 final = battery_monitor.getBattery(noLog=True)
                 if platform == 'Android':
-                    result = {'status': 1, 'level': final[0], 'temperature': final[1]}
+                    result = {
+                        'status': 1,
+                        'level': final[0],
+                        'temperature': final[1],
+                        'current': final[2],
+                        'voltage': final[3],
+                        'power': final[4]}
                 else:
                     result = {'status': 1, 'temperature': final[0], 'current': final[1], 'voltage': final[2], 'power': final[3]}
             case Target.GPU:

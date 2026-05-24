@@ -83,7 +83,7 @@ memory = apm.collectMemory() # MB
 memory_detail = apm.collectMemoryDetail() # MB
 network = apm.collectNetwork(wifi=True) # KB
 fps = apm.collectFps() # HZ
-battery = apm.collectBattery() # level:% temperature:°C current:mA voltage:mV power:w
+battery = apm.collectBattery() # level:% temperature:°C current:mA voltage:mV power:mW
 gpu = apm.collectGpu() # %
 disk = apm.collectDisk()
 thermal = apm.collectThermal()

@@ -82,7 +82,7 @@ memory = apm.collectMemory() # MB
 memory_detail = apm.collectMemoryDetail() # MB
 network = apm.collectNetwork(wifi=True) # KB , wifi=False时是收集移动数据流量，手机会自动关闭wifi切换到移动网络
 fps = apm.collectFps() # HZ
-battery = apm.collectBattery() # level:% temperature:°C current:mA voltage:mV power:w
+battery = apm.collectBattery() # level:% temperature:°C current:mA voltage:mV power:mW
 gpu = apm.collectGpu() # % 安卓只支持高通芯片的手机
 disk = apm.collectDisk() # KB
 thermal = apm.collectThermal() #温度传感器，收集各个部件的温度（一些手机可能没有权限）

@@ -70,6 +70,51 @@
                                     <div class="card-body">
                                         <div class="row align-items-center">
                                             <div class="col-auto">
+                                                <span class="bg-green text-white avatar">BAT</span>
+                                            </div>
+                                            <div class="col">
+                                                <div class="font-weight-medium">Current</div>
+                                                <div class="text-muted">Avg: {{ current }}mA</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-lg-2">
+                                <div class="card card-sm">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <span class="bg-green text-white avatar">BAT</span>
+                                            </div>
+                                            <div class="col">
+                                                <div class="font-weight-medium">Voltage</div>
+                                                <div class="text-muted">Avg: {{ voltage }}mV</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-lg-2">
+                                <div class="card card-sm">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <span class="bg-green text-white avatar">BAT</span>
+                                            </div>
+                                            <div class="col">
+                                                <div class="font-weight-medium">Power</div>
+                                                <div class="text-muted">Avg: {{ power }}mW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-lg-2">
+                                <div class="card card-sm">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
                                                 <span class="bg-dark text-white avatar">CPU</span>
                                             </div>
                                             <div class="col">
@@ -517,6 +562,15 @@
         },{
             name: 'temperature',
             data: {{ battery_charts.batteryTem }}
+        },{
+            name: 'current',
+            data: {{ battery_charts.batteryCurrent }}
+        },{
+            name: 'voltage',
+            data: {{ battery_charts.batteryVoltage }}
+        },{
+            name: 'power',
+            data: {{ battery_charts.batteryPower }}
         }])
     }
 

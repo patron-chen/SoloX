@@ -227,6 +227,69 @@
                 </div>
             </div>
         </div>
+        <div class="col-sm-6 col-lg-2">
+            <div class="card card-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <span class="bg-green text-white avatar">
+                                {% if lan == 'cn' %} 电池 {% else %} BAT {% endif %}
+                            </span>
+                        </div>
+                        <div class="col">
+                            <div class="font-weight-medium">
+                                 {% if lan == 'cn' %} 电流 {% else %} Current {% endif %}
+                            </div>
+                            <div class="text-muted">
+                                Avg: {{ apm_data.batteryCurrent }}mA
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-2">
+            <div class="card card-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <span class="bg-green text-white avatar">
+                                {% if lan == 'cn' %} 电池 {% else %} BAT {% endif %}
+                            </span>
+                        </div>
+                        <div class="col">
+                            <div class="font-weight-medium">
+                                {% if lan == 'cn' %} 电压 {% else %} Voltage {% endif %}
+                            </div>
+                            <div class="text-muted">
+                                Avg: {{ apm_data.batteryVoltage }}mV
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-2">
+            <div class="card card-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <span class="bg-green text-white avatar">
+                                {% if lan == 'cn' %} 电池 {% else %} BAT {% endif %}
+                            </span>
+                        </div>
+                        <div class="col">
+                            <div class="font-weight-medium">
+                                {% if lan == 'cn' %} 功耗 {% else %} Power {% endif %}
+                            </div>
+                            <div class="text-muted">
+                                Avg: {{ apm_data.batteryPower }}mW
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         {% else %}
         <div class="col-sm-6 col-lg-2">
             <div class="card card-sm">
@@ -284,7 +347,7 @@
                                 {% if lan == 'cn' %} 电压 {% else %} Voltage {% endif %}
                             </div>
                             <div class="text-muted">
-                                Avg: {{ apm_data.batteryVoltage }}mW
+                                Avg: {{ apm_data.batteryVoltage }}mV
                             </div>
                         </div>
                     </div>
@@ -305,7 +368,7 @@
                                 {% if lan == 'cn' %} 功耗 {% else %} Power {% endif %}
                             </div>
                             <div class="text-muted">
-                                Avg: {{ apm_data.batteryPower }}mV
+                                Avg: {{ apm_data.batteryPower }}mW
                             </div>
                         </div>
                     </div>
@@ -933,6 +996,9 @@
                 jank:'{{ apm_data.jank }}',
                 level:'{{ apm_data.batteryLevel }}',
                 temperature:'{{ apm_data.batteryTeml }}',
+                current:'{{ apm_data.batteryCurrent }}',
+                voltage:'{{ apm_data.batteryVoltage }}',
+                power:'{{ apm_data.batteryPower }}',
                 net_send:'{{ apm_data.flow_send }}',
                 net_recv:'{{ apm_data.flow_recv }}',
                 gpu:'{{ apm_data.gpu }}',
@@ -1089,6 +1155,15 @@
                     },{
                         name: 'temperature(­°C)',
                         data: data['batteryTem']
+                    },{
+                        name: 'current(mA)',
+                        data: data['batteryCurrent']
+                    },{
+                        name: 'voltage(mV)',
+                        data: data['batteryVoltage']
+                    },{
+                        name: 'power(mW)',
+                        data: data['batteryPower']
                     }])
                 }else {
                     battery_chart.updateSeries([{
