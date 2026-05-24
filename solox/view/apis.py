@@ -381,9 +381,9 @@ def getFps():
     platform = method._request(request, 'platform')
     pkgname = method._request(request, 'pkgname')
     device = method._request(request, 'device')
-    surv = method._request(request, 'surv')
+    surv = request.values.get('surv', 'auto')
     try:
-        surfaceview = False if surv == 'false' else True
+        surfaceview = {'true': True, 'false': False}.get(str(surv).lower(), 'auto')
         match(model):
             case '2-devices':
                 pkgNameList = []

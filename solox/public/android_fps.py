@@ -57,52 +57,108 @@ class SurfaceStatsCollector(object):
             if self.fps_queue:
                 self.fps_queue.task_done()
 
-    def get_surfaceview(self):
-        activity_name = ''
-        activity_line = ''
-        try:
-            dumpsys_result = adb.shell(cmd='dumpsys SurfaceFlinger --list | {} {}'.format(d.filterType(), self.package_name), deviceId=self.device)
-            dumpsys_result_list = dumpsys_result.split('\n')
-            for line in dumpsys_result_list:
-                if line.startswith('SurfaceView') and line.find(self.package_name) != -1:
-                    activity_line = line.strip()
-                    return activity_line
+    def _normalize_surfaceflinger_layer(self, line):
+        layer = line.strip()
+        if layer.startswith('RequestedLayerState{') and layer.endswith('}'):
+            layer = layer[len('RequestedLayerState{'):-1].strip()
+        for separator in [' parentId=', ' relativeParentId=', ' z=', ' !handle']:
+            if separator in layer:
+                layer = layer.split(separator, 1)[0].strip()
+        return layer
 
-            activity_name = dumpsys_result_list[len(dumpsys_result_list) - 1]
-            if not activity_name.__contains__(self.package_name):
+    def _surfaceflinger_candidates(self):
+        dumpsys_result = adb.shell(
+            cmd='dumpsys SurfaceFlinger --list | {} {}'.format(d.filterType(), self.package_name),
+            deviceId=self.device
+        )
+        candidates = []
+        for line in dumpsys_result.split('\n'):
+            if self.package_name not in line:
+                continue
+            layer = self._normalize_surfaceflinger_layer(line)
+            if layer and layer not in candidates:
+                candidates.append(layer)
+
+        def score(layer):
+            value = 0
+            if 'SurfaceView' in layer:
+                value += 100
+            if '(BLAST)' in layer:
+                value += 50
+            if layer.startswith('SurfaceView'):
+                value += 10
+            return value
+
+        candidates.sort(key=score, reverse=True)
+        return candidates, dumpsys_result
+
+    def _surfaceflinger_latency_lines(self, layer):
+        if not layer:
+            return []
+        safe_layer = layer.replace('\\', '\\\\').replace('"', '\\"')
+        results = adb.shell(
+            cmd='\'dumpsys SurfaceFlinger --latency "%s"\'' % safe_layer,
+            deviceId=self.device
+        )
+        return results.replace("\r\n", "\n").splitlines()
+
+    def _parse_surfaceflinger_latency(self, lines):
+        nanoseconds_per_second = 1e9
+        pending_fence_timestamp = (1 << 63) - 1
+        if not lines or not lines[0].isdigit():
+            return None, None
+        try:
+            refresh_period = int(lines[0]) / nanoseconds_per_second
+        except Exception:
+            return None, None
+
+        timestamps = []
+        for line in lines[1:]:
+            fields = line.split()
+            if len(fields) != 3:
+                continue
+            try:
+                timestamp = [int(fields[0]), int(fields[1]), int(fields[2])]
+            except ValueError:
+                continue
+            if timestamp[1] in (0, pending_fence_timestamp):
+                continue
+            timestamp = [_timestamp / nanoseconds_per_second for _timestamp in timestamp]
+            timestamps.append(timestamp)
+        return refresh_period, timestamps
+
+    def _surface_has_frame_data(self, layer):
+        refresh_period, timestamps = self._parse_surfaceflinger_latency(
+            self._surfaceflinger_latency_lines(layer)
+        )
+        return refresh_period is not None and len(timestamps) > 0
+
+    def get_surfaceview(self):
+        try:
+            candidates, dumpsys_result = self._surfaceflinger_candidates()
+            for layer in candidates:
+                if 'SurfaceView' in layer and self._surface_has_frame_data(layer):
+                    return layer
+            for layer in candidates:
+                if self._surface_has_frame_data(layer):
+                    return layer
+            if candidates:
+                return candidates[0]
+            else:
                 logger.error('get activity name failed, Please provide SurfaceFlinger --list information to the author')
                 logger.info('dumpsys SurfaceFlinger --list info: {}'.format(dumpsys_result))
         except Exception:
             traceback.print_exc()
             logger.error('get activity name failed, Please provide SurfaceFlinger --list information to the author')
-            logger.info('dumpsys SurfaceFlinger --list info: {}'.format(dumpsys_result))
-        return activity_name            
+        return ''
      
     def get_surfaceview_activity(self):
-        activity_name = ''
-        activity_line = ''
         try:
-            dumpsys_result = adb.shell(cmd='dumpsys SurfaceFlinger --list | {} {}'.format(d.filterType(), self.package_name), deviceId=self.device)
-            dumpsys_result_list = dumpsys_result.split('\n')    
-            for line in dumpsys_result_list:
-                if line.startswith('SurfaceView') and line.find(self.package_name) != -1:
-                    activity_line = line.strip()
-                    break
-            if activity_line:
-                if activity_line.find(' ')  != -1:      
-                    activity_name = activity_line.split(' ')[2]
-                else:
-                    activity_name = activity_line.replace('SurfaceView','').replace('[','').replace(']','').replace('-','').strip()    
-            else:
-                activity_name = dumpsys_result_list[len(dumpsys_result_list) - 1]
-                if not activity_name.__contains__(self.package_name):
-                    logger.error('get activity name failed, Please provide SurfaceFlinger --list information to the author')
-                    logger.info('dumpsys SurfaceFlinger --list info: {}'.format(dumpsys_result))
+            return self.get_surfaceview()
         except Exception:
             traceback.print_exc()
             logger.error('get activity name failed, Please provide SurfaceFlinger --list information to the author')
-            logger.info('dumpsys SurfaceFlinger --list info: {}'.format(dumpsys_result))
-        return activity_name
+        return ''
      
     def get_focus_activity(self):
         activity_name = ''
@@ -410,37 +466,15 @@ class SurfaceStatsCollector(object):
         else:
             # self.focus_window = self.get_surfaceview_activity()
             self.focus_window = self.get_surfaceview()
-            results = adb.shell(
-                cmd='dumpsys SurfaceFlinger --latency \\"%s\\"' % self.focus_window, deviceId=self.device)
-            results = results.replace("\r\n", "\n").splitlines()
-            if len(results) <= 1 or int(results[-2].split()[0]) ==0:
+            results = self._surfaceflinger_latency_lines(self.focus_window)
+            if len(results) <= 1:
                 self.focus_window = self.get_surfaceview_activity()
-                results = adb.shell(
-                cmd='dumpsys SurfaceFlinger --latency \\"%s\\"' % self.focus_window, deviceId=self.device)
-                results = results.replace("\r\n", "\n").splitlines()
+                results = self._surfaceflinger_latency_lines(self.focus_window)
             if not len(results):
                 return (None, None)
-            if not results[0].isdigit():
+            refresh_period, timestamps = self._parse_surfaceflinger_latency(results)
+            if refresh_period is None or timestamps is None:
                 return (None, None)
-            try:
-                refresh_period = int(results[0]) / nanoseconds_per_second
-            except Exception as e:
-                logger.exception(e)
-                return (None, None)
-            # If a fence associated with a frame is still pending when we query the
-            # latency data, SurfaceFlinger gives the frame a timestamp of INT64_MAX.
-            # Since we only care about completed frames, we will ignore any timestamps
-            # with this value.
-            
-            for line in results[2:]:
-                fields = line.split()
-                if len(fields) != 3:
-                    continue
-                timestamp = [int(fields[0]), int(fields[1]), int(fields[2])]
-                if timestamp[1] == pending_fence_timestamp:
-                    continue
-                timestamp = [_timestamp / nanoseconds_per_second for _timestamp in timestamp]
-                timestamps.append(timestamp)
         return (refresh_period, timestamps)
 
     def _get_surface_stats_legacy(self):
@@ -509,6 +543,10 @@ class FPSMonitor(Monitor):
                                                   self.jank_threshold, self.surfaceview, self.use_legacy)
 
     def start(self):
+        global collect_fps
+        global collect_jank
+        collect_fps = 0
+        collect_jank = 0
         self.fpscollector.start(self.start_time)
 
     def stop(self):
