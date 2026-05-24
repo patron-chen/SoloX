@@ -740,19 +740,9 @@ class Disk(object):
 
     def getAndroidDisk(self):
         disk_info = adb.shell(cmd="df", deviceId=self.deviceId)
-        disk_lines = disk_info.splitlines()
-        disk_lines.pop(0)
-        size_list = list()
-        used_list = list()
-        free_list = list()
-        for line in disk_lines:
-            disk_value_list = line.split()
-            size_list.append(int(disk_value_list[1]))
-            used_list.append(int(disk_value_list[2]))
-            free_list.append(int(disk_value_list[3]))
-        sum_size = sum(size_list)
-        sum_used = sum(used_list)
-        sum_free = sum(free_list)
+        disk_list = f._parse_android_df(disk_info.splitlines())
+        disk_list = f._android_storage_rows(disk_list)
+        sum_size, sum_used, sum_free = f._sum_android_disk(disk_list)
         disk_dict = {"disk_size": sum_size, "used": sum_used, "free": sum_free}
         return disk_dict
 

@@ -247,6 +247,39 @@ class File:
         self.fileroot = fileroot
         self.report_dir = self.get_repordir()
 
+    def _parse_android_df(self, lines):
+        disk_list = list()
+        for line in lines:
+            if 'Filesystem' in line or line.strip() == '':
+                continue
+            disk_value_list = line.split()
+            if len(disk_value_list) < 6:
+                continue
+            disk_list.append(dict(
+                filesystem=disk_value_list[0],
+                blocks=disk_value_list[1],
+                used=disk_value_list[2],
+                available=disk_value_list[3],
+                use_percent=disk_value_list[4],
+                mounted=disk_value_list[5]
+            ))
+        return disk_list
+
+    def _android_storage_rows(self, disk_list):
+        data_rows = [disk for disk in disk_list if disk.get('mounted') == '/data']
+        if data_rows:
+            return data_rows
+        emulated_rows = [disk for disk in disk_list if disk.get('mounted') == '/storage/emulated']
+        if emulated_rows:
+            return emulated_rows
+        return disk_list
+
+    def _sum_android_disk(self, disk_list):
+        size_list = [int(disk['blocks']) for disk in disk_list]
+        used_list = [int(disk['used']) for disk in disk_list]
+        free_list = [int(disk['available']) for disk in disk_list]
+        return sum(size_list), sum(used_list), sum(free_list)
+
     def clear_file(self):
         logger.info('Clean up useless files ...')
         if os.path.exists(self.report_dir):
@@ -595,52 +628,22 @@ class File:
         sum_init_disk = dict()
         sum_current_disk = dict()
         if os.path.exists(os.path.join(self.report_dir,scene,'initail_disk.log')):
-            size_list = list()
-            used_list = list()
-            free_list = list()
             lines = self.open_file(os.path.join(self.report_dir,scene,'initail_disk.log'), "r")
-            for line in lines:
-                if 'Filesystem' not in line and line.strip() != '':
-                    disk_value_list = line.split()
-                    disk_dict = dict(
-                        filesystem = disk_value_list[0],
-                        blocks = disk_value_list[1],
-                        used = disk_value_list[2],
-                        available = disk_value_list[3],
-                        use_percent = disk_value_list[4],
-                        mounted = disk_value_list[5]
-                    )
-                    initail_disk_list.append(disk_dict)
-                    size_list.append(int(disk_value_list[1]))
-                    used_list.append(int(disk_value_list[2]))
-                    free_list.append(int(disk_value_list[3]))
-            sum_init_disk['sum_size'] = int(sum(size_list) / 1024 / 1024)
-            sum_init_disk['sum_used'] = int(sum(used_list) / 1024)
-            sum_init_disk['sum_free'] = int(sum(free_list) / 1024)
+            initail_disk_list = self._parse_android_df(lines)
+            summary_disk_list = self._android_storage_rows(initail_disk_list)
+            sum_size, sum_used, sum_free = self._sum_android_disk(summary_disk_list)
+            sum_init_disk['sum_size'] = int(sum_size / 1024 / 1024)
+            sum_init_disk['sum_used'] = int(sum_used / 1024)
+            sum_init_disk['sum_free'] = int(sum_free / 1024)
                
         if os.path.exists(os.path.join(self.report_dir,scene,'current_disk.log')):
-            size_list = list()
-            used_list = list()
-            free_list = list()
             lines = self.open_file(os.path.join(self.report_dir,scene,'current_disk.log'), "r")
-            for line in lines:
-                if 'Filesystem' not in line and line.strip() != '':
-                    disk_value_list = line.split()
-                    disk_dict = dict(
-                        filesystem = disk_value_list[0],
-                        blocks = disk_value_list[1],
-                        used = disk_value_list[2],
-                        available = disk_value_list[3],
-                        use_percent = disk_value_list[4],
-                        mounted = disk_value_list[5]
-                    )
-                    current_disk_list.append(disk_dict)
-                    size_list.append(int(disk_value_list[1]))
-                    used_list.append(int(disk_value_list[2]))
-                    free_list.append(int(disk_value_list[3]))
-            sum_current_disk['sum_size'] = int(sum(size_list) / 1024 / 1024)
-            sum_current_disk['sum_used'] = int(sum(used_list) / 1024)
-            sum_current_disk['sum_free'] = int(sum(free_list) / 1024)       
+            current_disk_list = self._parse_android_df(lines)
+            summary_disk_list = self._android_storage_rows(current_disk_list)
+            sum_size, sum_used, sum_free = self._sum_android_disk(summary_disk_list)
+            sum_current_disk['sum_size'] = int(sum_size / 1024 / 1024)
+            sum_current_disk['sum_used'] = int(sum_used / 1024)
+            sum_current_disk['sum_free'] = int(sum_free / 1024)
                  
         return initail_disk_list, current_disk_list, sum_init_disk, sum_current_disk
 
